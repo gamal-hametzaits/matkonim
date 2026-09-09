@@ -1,0 +1,12 @@
+name = "matkonim"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "matkonim-db"
+database_id = "40109b11-f0c5-4e9d-b06a-c8e961b295d4"
+
+[[kv_namespaces]]
+binding = "PHOTOS"
+id = "66a4a5e56f6f49efb3a2327d70108d6c"
