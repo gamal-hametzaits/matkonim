@@ -130,6 +130,14 @@ input[type=text],input[type=password],textarea{
 }
 textarea{resize:vertical;min-height:90px}
 input[type=file]{width:100%;font-size:13px;margin-top:4px}
+.photo-picker{margin-top:7px;border:2px dashed #c9b892;background:#fffef9;padding:10px;border-radius:8px;transition:border-color .15s,background .15s}
+.photo-picker:focus-within{border-color:var(--terra);background:#fff}
+.photo-preview{display:none;margin-top:10px;grid-template-columns:92px 1fr;gap:12px;align-items:center;text-align:right}
+.photo-preview.show{display:grid}
+.photo-preview img{width:92px;height:76px;object-fit:cover;border:4px solid #fff;box-shadow:2px 3px 8px rgba(80,60,30,.22);transform:rotate(-1.5deg)}
+.photo-preview .pname{font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.photo-preview .pmeta{color:var(--ink-soft);font-size:12px;margin-top:3px}
+.photo-preview .ready{color:var(--green);font-size:12px;font-weight:700;margin-top:4px}
 .roles{display:flex;gap:10px;margin-top:6px}
 .role-chip{
   flex:1;border:2px solid var(--ink);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;
@@ -201,6 +209,27 @@ function shrink(file, max=1600){
     };
     img.onerror = ()=>reject(new Error('הקובץ אינו תמונה תקינה'));
     img.src = URL.createObjectURL(file);
+  });
+}
+
+function bindPhotoPreview(inputId, previewId){
+  const input = $('#'+inputId), box = $('#'+previewId);
+  if(!input || !box) return;
+  input.addEventListener('change', ()=>{
+    const f = input.files && input.files[0];
+    if(!f){ box.classList.remove('show'); box.innerHTML=''; return; }
+    if(!['image/jpeg','image/png','image/webp'].includes(f.type)){
+      box.classList.add('show'); box.innerHTML='<div></div><div class="err">אפשר לבחור JPG, PNG או WebP בלבד</div>'; return;
+    }
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = ()=>{
+      box.classList.add('show');
+      box.innerHTML='<img src="'+url+'" alt="תצוגה מקדימה"><div><div class="pname">'+esc(f.name)+'</div><div class="pmeta">'+img.width+'×'+img.height+' · '+(f.size/1024/1024).toFixed(1)+' MB</div><div class="ready">התמונה מוכנה · תכווץ אוטומטית לפני ההעלאה</div></div>';
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); box.classList.add('show'); box.innerHTML='<div></div><div class="err">לא הצלחנו לקרוא את התמונה</div>'; };
+    img.src=url;
   });
 }
 
@@ -307,8 +336,8 @@ function renderNew(){
     <h2>קלף מתכון חדש</h2>
     <label>שם המתכון</label>
     <input type="text" id="n-title" maxlength="120" placeholder="למשל: עוגת התפוחים של סבתא">
-    <label>תמונה של המנ&#1492;</label>
-    <input type="file" id="n-photo" accept="image/jpeg,image/png,image/webp">
+    <label>תמונה של המנה</label>
+    <div class="photo-picker"><input type="file" id="n-photo" accept="image/jpeg,image/png,image/webp"><div class="photo-preview" id="n-preview" aria-live="polite"></div></div>
     <label>מרכיבים</label>
     <textarea id="n-ing" rows="5" placeholder="שורה לכל מרכיב…"></textarea>
     <label>הוראות הכנה</label>
@@ -316,6 +345,7 @@ function renderNew(){
     <div id="new-msg"></div>
     <button class="btn primary" id="new-btn" onclick="doNew()">לתוך הקופסה</button>
   </div>`;
+  bindPhotoPreview('n-photo','n-preview');
 }
 async function doNew(){
   const msg = $('#new-msg'); msg.innerHTML='';
@@ -363,7 +393,7 @@ async function renderRecipe(id){
       <div class="panel" style="max-width:420px;margin:20px 0;text-align:right">
         <h2 style="font-size:19px">הכנתם? הדביקו תמונה</h2>
         <p style="font-size:13px;color:var(--ink-soft)">תמונה בלבד — התמונה שלכם מספרת את הסיפור.</p>
-        <input type="file" id="r-photo" accept="image/jpeg,image/png,image/webp">
+        <div class="photo-picker"><input type="file" id="r-photo" accept="image/jpeg,image/png,image/webp"><div class="photo-preview" id="r-preview" aria-live="polite"></div></div>
         <div id="r-msg"></div>
         <button class="btn primary" id="r-btn" onclick="doRespond('${r.id}')">הדבקה לקלף</button>
       </div>` : (!ME ? `<p style="margin-top:10px"><a href="#" onclick="go('auth');return false">התחברו כמגיבים</a> כדי להדביק תמונה של מה שהכנתם.</p>` : '')}
@@ -373,6 +403,7 @@ async function renderRecipe(id){
         <figcaption>${esc(x.responder_name)} הכין/ה · ${new Date(x.created_at+'Z').toLocaleDateString('he-IL')}</figcaption></figure>`).join('') || '<p style="color:var(--ink-soft)">עוד אף אחד לא הדביק תמונה. מי ראשון?</p>'}
     </div>
   </section>`;
+  bindPhotoPreview('r-photo','r-preview');
 }
 async function doRespond(id){
   const msg = $('#r-msg'); msg.innerHTML='';
