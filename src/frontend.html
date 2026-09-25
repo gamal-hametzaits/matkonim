@@ -208,14 +208,19 @@ function shrink(file, max=1600){
       },'image/jpeg',0.85);
     };
     img.onerror = ()=>reject(new Error('הקובץ אינו תמונה תקינה'));
-    img.src = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    img.onload = ((load) => () => { URL.revokeObjectURL(url); load(); })(img.onload);
+    img.onerror = ((fail) => () => { URL.revokeObjectURL(url); fail(); })(img.onerror);
+    img.src = url;
   });
 }
 
 function bindPhotoPreview(inputId, previewId){
   const input = $('#'+inputId), box = $('#'+previewId);
   if(!input || !box) return;
+  let selection = 0;
   input.addEventListener('change', ()=>{
+    const current = ++selection;
     const f = input.files && input.files[0];
     if(!f){ box.classList.remove('show'); box.innerHTML=''; return; }
     if(!['image/jpeg','image/png','image/webp'].includes(f.type)){
@@ -224,11 +229,18 @@ function bindPhotoPreview(inputId, previewId){
     const url = URL.createObjectURL(f);
     const img = new Image();
     img.onload = ()=>{
+      if(current !== selection){ URL.revokeObjectURL(url); return; }
       box.classList.add('show');
-      box.innerHTML='<img src="'+url+'" alt="תצוגה מקדימה"><div><div class="pname">'+esc(f.name)+'</div><div class="pmeta">'+img.width+'×'+img.height+' · '+(f.size/1024/1024).toFixed(1)+' MB</div><div class="ready">התמונה מוכנה · תכווץ אוטומטית לפני ההעלאה</div></div>';
-      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      box.innerHTML='<img alt="תצוגה מקדימה"><div><div class="pname">'+esc(f.name)+'</div><div class="pmeta">'+img.width+'×'+img.height+' · '+(f.size/1024/1024).toFixed(1)+' MB</div><div class="ready">התמונה מוכנה · תכווץ אוטומטית לפני ההעלאה</div></div>';
+      const preview = box.querySelector('img');
+      preview.onload = preview.onerror = ()=>URL.revokeObjectURL(url);
+      preview.src = url;
     };
-    img.onerror=()=>{ URL.revokeObjectURL(url); box.classList.add('show'); box.innerHTML='<div></div><div class="err">לא הצלחנו לקרוא את התמונה</div>'; };
+    img.onerror=()=>{
+      URL.revokeObjectURL(url);
+      if(current !== selection) return;
+      box.classList.add('show'); box.innerHTML='<div></div><div class="err">לא הצלחנו לקרוא את התמונה</div>';
+    };
     img.src=url;
   });
 }
