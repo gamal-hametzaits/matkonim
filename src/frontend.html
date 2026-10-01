@@ -182,6 +182,7 @@ footer{text-align:center;color:var(--ink-soft);font-size:12px;padding:30px;borde
 let ME = null;
 const $ = s => document.querySelector(s);
 const app = $('#app');
+let viewEpoch = 0;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
@@ -267,12 +268,20 @@ async function go(view, arg){
 }
 
 async function renderFeed(){
+  const epoch = ++viewEpoch;
   app.innerHTML = `<div class="hero"><h1>כל מתכון הוא קלף בקופסה</h1>
     <p>יוצרים מעלים קלף מתכון עם תמונה והוראות. מגיבים מכינים בבית — ומדביקים תמונה של מה שיצא.</p>
     ${!ME?`<div style="margin-top:18px"><button class="btn primary" onclick="go('auth')">הצטרפו לקופסה</button></div>`:''}
   </div><div id="feed"><div class="empty">טוען קלפים…</div></div>`;
-  const {recipes} = await api('/api/recipes');
   const feed = $('#feed');
+  let recipes;
+  try { ({recipes} = await api('/api/recipes')); }
+  catch(e) {
+    if(epoch !== viewEpoch) return;
+    feed.innerHTML = `<div class="empty"><h2>לא הצלחנו לטעון את הקלפים</h2><p>${esc(e.message)}</p><button class="btn" onclick="go('feed')">ניסיון נוסף</button></div>`;
+    return;
+  }
+  if(epoch !== viewEpoch) return;
   if(!recipes.length){
     feed.innerHTML = `<div class="empty"><h2>הקופסה עוד ריקה</h2><p>המתכון הראשון מחכה ליוצר הראשון.</p></div>`;
     return;
@@ -290,6 +299,7 @@ async function renderFeed(){
 }
 
 function renderAuth(mode='signup'){
+  ++viewEpoch;
   app.innerHTML = `
   <div class="panel">
     <h2>${mode==='signup'?'פתיחת קלף אישי':'כניסה לקופסה'}</h2>
@@ -343,6 +353,7 @@ async function logout(){
 
 function renderNew(){
   if(!ME || ME.role!=='creator'){ return renderAuth('login'); }
+  ++viewEpoch;
   app.innerHTML = `
   <div class="panel" style="max-width:560px">
     <h2>קלף מתכון חדש</h2>
@@ -380,10 +391,12 @@ async function doNew(){
 }
 
 async function renderRecipe(id){
+  const epoch = ++viewEpoch;
   app.innerHTML = `<div class="empty">שולף את הקלף…</div>`;
   let data;
   try{ data = await api('/api/recipes/'+id); }
-  catch(e){ app.innerHTML = `<div class="empty"><h2>הקלף הלך לאיבוד</h2><p><a href="#" onclick="go('feed');return false">חזרה לקופסה</a></p></div>`; return; }
+  catch(e){ if(epoch !== viewEpoch) return; app.innerHTML = `<div class="empty"><h2>הקלף הלך לאיבוד</h2><p><a href="#" onclick="go('feed');return false">חזרה לקופסה</a></p></div>`; return; }
+  if(epoch !== viewEpoch) return;
   const r = data.recipe;
   app.innerHTML = `
   <div style="margin-top:6px"><a href="#" onclick="go('feed');return false">→ חזרה לקופסה</a></div>
